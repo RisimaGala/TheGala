@@ -1,0 +1,49 @@
+@model List<TheGala.Models.QueueMessageView>
+@{
+    ViewData["Title"] = "Queue Messages";
+}
+
+<h1>Queue Messages</h1>
+<p>Messages waiting on the <strong>orders-queue</strong> queue in Azure Queue Storage.</p>
+<p class="text-muted"><small>This page peeks at messages without removing them, so it's safe to refresh.</small></p>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+
+<p>
+    <a asp-controller="Order" asp-action="Create" class="btn btn-primary">Place an Order</a>
+    <a asp-action="Index" class="btn btn-outline-secondary">Refresh</a>
+</p>
+
+<table class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th>Message</th>
+            <th>Inserted On</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model != null && Model.Count > 0)
+        {
+            foreach (var message in Model)
+            {
+                <tr>
+                    <td>@message.Text</td>
+                    <td>@message.InsertedOn</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="2" class="text-center">No messages currently on the queue.</td>
+            </tr>
+        }
+    </tbody>
+</table>
