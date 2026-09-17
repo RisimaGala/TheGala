@@ -1,8 +1,23 @@
-﻿@{
+@{
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="hero">
+    <div class="eyebrow">ABC Retail &middot; Cloud Modernisation</div>
+    <h1 class="display-5">TheGala</h1>
+    <p class="lead">
+        A cloud-native platform built on Microsoft Azure to replace ABC Retail's aging on-premises
+        order processing system, network file shares, and legacy messaging middleware &mdash; so the
+        business can handle peak-season demand without the delays, errors, and missed sales that come
+        with it.
+    </p>
+    <a asp-controller="Product" asp-action="Index" class="btn btn-light btn-lg mt-2">Explore the Platform</a>
+</section>
+
+<section class="cta-strip">
+    <h2 class="section-heading">See It in Action</h2>
+    <p class="section-subheading mb-3">Jump straight into the parts of the platform built so far.</p>
+    <a asp-controller="Order" asp-action="Create" class="btn btn-primary me-2">Place an Order</a>
+    <a asp-controller="Events" asp-action="Index" class="btn btn-outline-primary me-2">View Event Processing</a>
+    <a asp-controller="Queue" asp-action="Index" class="btn btn-outline-primary">View Queue Messages</a>
+</section>

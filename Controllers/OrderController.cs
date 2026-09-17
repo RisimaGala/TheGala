@@ -10,15 +10,18 @@ namespace TheGala.Controllers
     public class OrderController : Controller
     {
         private readonly IQueueStorageService _queueStorageService;
+        private readonly IServiceBusService _serviceBusService;
         private readonly IFileStorageService _fileStorageService;
         private readonly ILogger<OrderController> _logger;
 
         public OrderController(
             IQueueStorageService queueStorageService,
+            IServiceBusService serviceBusService,
             IFileStorageService fileStorageService,
             ILogger<OrderController> logger)
         {
             _queueStorageService = queueStorageService;
+            _serviceBusService = serviceBusService;
             _fileStorageService = fileStorageService;
             _logger = logger;
         }
@@ -46,19 +49,37 @@ namespace TheGala.Controllers
                 var orderId = Random.Shared.Next(1000, 9999);
                 var message = $"Processing order #{orderId}: {quantity} x {productName}";
 
+                // Legacy path (Part 1): a plain-text notice on Azure Queue Storage.
                 await _queueStorageService.SendMessageAsync(message);
+
+                // Reliable/real-time path (Part 2): the same order as a structured event.
+                //  - "order-processing" queue: picked up once, reliably, by the
+                //    OrderQueueProcessor function (peek-lock + dead-lettering on failure).
+                //  - "order-events" topic: fanned out in real time to every interested
+                //    subscriber (inventory, customer notifications) without this
+                //    controller knowing who's listening.
+                var orderMessage = new OrderMessage
+                {
+                    OrderId = orderId,
+                    ProductName = productName,
+                    Quantity = quantity,
+                    PlacedAtUtc = DateTimeOffset.UtcNow
+                };
+
+                await _serviceBusService.SendOrderToQueueAsync(orderMessage);
+                await _serviceBusService.PublishOrderEventAsync(orderMessage);
 
                 try
                 {
-                    await _fileStorageService.LogAsync($"Queue message sent: {message}");
+                    await _fileStorageService.LogAsync($"Order event published: {message}");
                 }
                 catch (Exception logEx)
                 {
                     _logger.LogWarning(logEx, "Order placed but failed to write log entry.");
                 }
 
-                TempData["SuccessMessage"] = $"Order #{orderId} was placed and sent to the queue.";
-                return RedirectToAction("Index", "Queue");
+                TempData["SuccessMessage"] = $"Order #{orderId} was placed and sent for processing.";
+                return RedirectToAction("Index", "Events");
             }
             catch (Exception ex)
             {

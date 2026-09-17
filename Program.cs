@@ -1,13 +1,27 @@
 using Azure.Data.Tables;
+using Azure.Messaging.ServiceBus;
 using Azure.Storage.Blobs;
 using Azure.Storage.Files.Shares;
 using Azure.Storage.Queues;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using TheGala.Data;
 using TheGala.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddRazorPages();
+
+// Identity's own database (separate from the app's Azure Storage data), used only
+// to store user accounts, passwords, and roles for login.
+var identityConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(identityConnectionString));
+
+builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
+    .AddEntityFrameworkStores<ApplicationDbContext>();
 
 // The connection string comes from appsettings.json ("AzureStorage:ConnectionString").
 // Fill in your real Azure Storage connection string there - never hardcode it here.
@@ -38,6 +52,14 @@ builder.Services.AddSingleton(new ShareServiceClient(azureStorageConnectionStrin
 // Our own service that wraps Azure Files operations for the activity log.
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
+// ServiceBusClient is the entry point for talking to Azure Service Bus, our reliable
+// order queue ("order-processing") and real-time order event topic ("order-events").
+var serviceBusConnectionString = builder.Configuration["ServiceBus:ConnectionString"];
+builder.Services.AddSingleton(new ServiceBusClient(serviceBusConnectionString));
+
+// Our own service that wraps Service Bus send/peek operations for orders.
+builder.Services.AddScoped<IServiceBusService, ServiceBusService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -53,10 +75,12 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapRazorPages();
 
 app.Run();
